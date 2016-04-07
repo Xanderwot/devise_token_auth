@@ -10,7 +10,7 @@ module DeviseTokenAuth
 
     def create
       # Check
-      field = (resource_params.keys.map(&:to_sym) & resource_class.authentication_keys).first
+      field = (resource_params.reject { |k, v| v.nil? }.keys.map(&:to_sym) & resource_class.authentication_keys).first
 
       @resource = nil
       if field
@@ -47,6 +47,8 @@ module DeviseTokenAuth
         render_create_success
       elsif @resource and not (!@resource.respond_to?(:active_for_authentication?) or @resource.active_for_authentication?)
         render_create_error_not_confirmed
+      elsif @resource && (@resource.try(:deleted?) || @resource.try(:suspended?))
+        render_create_error_blocked
       else
         render_create_error_bad_credentials
       end
@@ -135,6 +137,13 @@ module DeviseTokenAuth
       render json: {
         errors: [I18n.t("devise_token_auth.sessions.user_not_found")]
       }, status: 404
+    end
+
+    def method_name
+      render json: {
+        errors: 'Your account has been blocked. Please contact admin ' + \
+                'to ask any questions about your current account status.'
+      }, status: 403
     end
 
 
